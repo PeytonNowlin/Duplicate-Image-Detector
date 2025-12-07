@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Image Detector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-brand">
+                <svg class="header-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                <span class="header-title">Duplicate Detector</span>
+            </div>
+            <div class="header-status" id="model-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Ready</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Control Panel -->
+            <section class="panel control-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Scan Configuration</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label class="form-label">Directory Path</label>
+                        <div class="input-with-button">
+                            <input type="text" id="directory-input" class="form-input" placeholder="Click Browse or paste a path...">
+                            <button type="button" id="browse-btn" class="btn btn-secondary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                                </svg>
+                                Browse
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Similarity Threshold</label>
+                            <div class="slider-container">
+                                <input type="range" id="threshold-slider" class="form-slider" min="0.5" max="1" step="0.01" value="0.95">
+                                <span class="slider-value" id="threshold-value">95%</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Detection Method</label>
+                            <div class="method-toggle">
+                                <label class="radio-label">
+                                    <input type="radio" name="method" value="clip" id="method-clip" checked>
+                                    <span>CLIP (AI) - More accurate</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="method" value="phash" id="method-phash">
+                                    <span>pHash - Faster</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Options</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="recursive-check" checked>
+                                <span>Include subdirectories</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="skip-cache-check">
+                                <span>Skip cache (for benchmarking)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button id="scan-btn" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                        Start Scan
+                    </button>
+                </div>
+            </section>
+
+            <!-- Progress Panel -->
+            <section class="panel progress-panel" id="progress-panel" style="display: none;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Scan Progress</h2>
+                    <span class="panel-badge" id="progress-status">Running</span>
+                </div>
+                <div class="panel-body">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-stats">
+                        <div class="stat">
+                            <span class="stat-value" id="progress-count">0</span>
+                            <span class="stat-label">/ <span id="progress-total">0</span> images</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Current:</span>
+                            <span class="stat-value mono" id="progress-file">—</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Performance Panel -->
+            <section class="panel performance-panel" id="performance-panel" style="display: none;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Performance Metrics</h2>
+                    <span class="panel-badge" id="perf-total-time">0.00s</span>
+                </div>
+                <div class="panel-body">
+                    <div class="perf-grid">
+                        <div class="perf-item">
+                            <span class="perf-label">File Scanning</span>
+                            <span class="perf-value" id="perf-scan">—</span>
+                        </div>
+                        <div class="perf-item">
+                            <span class="perf-label">Cache Lookup</span>
+                            <span class="perf-value" id="perf-cache">—</span>
+                        </div>
+                        <div class="perf-item">
+                            <span class="perf-label">Embedding</span>
+                            <span class="perf-value" id="perf-embedding">—</span>
+                        </div>
+                        <div class="perf-item">
+                            <span class="perf-label">Detection</span>
+                            <span class="perf-value" id="perf-detection">—</span>
+                        </div>
+                        <div class="perf-item">
+                            <span class="perf-label">From Cache</span>
+                            <span class="perf-value" id="perf-cached-count">—</span>
+                        </div>
+                        <div class="perf-item">
+                            <span class="perf-label">Newly Embedded</span>
+                            <span class="perf-value" id="perf-embedded-count">—</span>
+                        </div>
+                        <div class="perf-item highlight">
+                            <span class="perf-label">Speed</span>
+                            <span class="perf-value" id="perf-speed">—</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Panel -->
+            <section class="panel results-panel" id="results-panel" style="display: none;">
+                <div class="panel-header">
+                    <h2 class="panel-title">Duplicate Groups</h2>
+                    <div class="panel-actions">
+                        <span class="results-summary" id="results-summary">0 groups, 0 duplicates</span>
+                        <button id="export-btn" class="btn btn-secondary btn-sm">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="groups-container" id="groups-container">
+                        <!-- Groups will be rendered here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Empty State -->
+            <section class="empty-state" id="empty-state">
+                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <h3 class="empty-title">No scan results yet</h3>
+                <p class="empty-text">Enter a directory path above and click "Start Scan" to find duplicate images.</p>
+            </section>
+        </main>
+
+        <!-- Action Modal -->
+        <div class="modal" id="action-modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="modal-title">Confirm Action</h3>
+                    <button class="modal-close" id="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- Dynamic content -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                    <button class="btn btn-danger" id="modal-confirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Preview Modal -->
+        <div class="modal" id="preview-modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="preview-title">Image Preview</h3>
+                    <button class="modal-close" id="preview-close">&times;</button>
+                </div>
+                <div class="modal-body preview-body">
+                    <img id="preview-image" class="preview-image" src="" alt="Preview">
+                    <div class="preview-info" id="preview-info"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=4"></script>
+</body>
+</html>
+
