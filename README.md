@@ -134,4 +134,5 @@ MIT
 
 ---
 
-Built by [Peyton Nowlin](https://nowlinautomation.com)
+**Peyton Nowlin**  
+[nowlinautomation.com](https://nowlinautomation.com) • [peyton@nowlinautomation.com](mailto:peyton@nowlinautomation.com)
